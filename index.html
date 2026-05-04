@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Playwright Test Runner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #21262d;
+    --border-bright: #30363d;
+    --text: #e6edf3;
+    --muted: #7d8590;
+    --pass: #3fb950;
+    --pass-dim: #1a3a21;
+    --fail: #f85149;
+    --fail-dim: #3d1414;
+    --running: #e3b341;
+    --running-dim: #3d2f0a;
+    --idle: #30363d;
+    --accent: #58a6ff;
+    --accent-dim: #0d2044;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Titlebar drag region */
+  .titlebar {
+    -webkit-app-region: drag;
+    height: 38px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 80px 0 20px;
+    flex-shrink: 0;
+  }
+
+  .titlebar-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .titlebar-badge {
+    margin-left: 12px;
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 2px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    letter-spacing: 0.08em;
+  }
+
+  /* Main layout */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Left panel: test list */
+  .sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-header {
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .summary-chips {
+    display: flex;
+    gap: 6px;
+  }
+
+  .chip {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 2px;
+    letter-spacing: 0.04em;
+    min-width: 24px;
+    text-align: center;
+  }
+  .chip.pass { background: var(--pass-dim); color: var(--pass); }
+  .chip.fail { background: var(--fail-dim); color: var(--fail); }
+
+  .test-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  .test-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.12s, border-color 0.12s;
+    user-select: none;
+  }
+
+  .test-item:hover { background: rgba(255,255,255,0.03); }
+  .test-item.selected {
+    background: var(--accent-dim);
+    border-left-color: var(--accent);
+  }
+
+  .test-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--idle);
+    transition: background 0.2s;
+    position: relative;
+  }
+
+  .test-status-dot.pass { background: var(--pass); box-shadow: 0 0 6px var(--pass); }
+  .test-status-dot.fail { background: var(--fail); box-shadow: 0 0 6px var(--fail); }
+  .test-status-dot.running {
+    background: var(--running);
+    animation: pulse 0.9s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.7); }
+  }
+
+  .test-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .test-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 2px;
+    letter-spacing: 0.04em;
+  }
+  .test-badge.pass { background: var(--pass-dim); color: var(--pass); }
+  .test-badge.fail { background: var(--fail-dim); color: var(--fail); }
+  .test-badge.running { background: var(--running-dim); color: var(--running); }
+  .test-badge.idle { background: var(--border); color: var(--muted); }
+
+  /* Controls */
+  .controls {
+    padding: 14px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+  }
+
+  .btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border: 1px solid;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.12s;
+    flex: 1;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0d1117;
+  }
+  .btn-primary:hover { background: #79bfff; border-color: #79bfff; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-secondary {
+    background: transparent;
+    border-color: var(--border-bright);
+    color: var(--muted);
+  }
+  .btn-secondary:hover { border-color: var(--text); color: var(--text); }
+  .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Right panel: log viewer */
+  .log-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .log-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .log-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--text);
+  }
+
+  .log-status-bar {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .status-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .status-label.pass { color: var(--pass); }
+  .status-label.fail { color: var(--fail); }
+  .status-label.running { color: var(--running); }
+  .status-label.idle { color: var(--muted); }
+
+  .log-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    font-size: 12px;
+    line-height: 1.8;
+  }
+
+  .log-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--muted);
+    gap: 10px;
+  }
+
+  .log-empty-icon {
+    font-size: 36px;
+    opacity: 0.3;
+  }
+
+  .log-empty-text {
+    font-size: 12px;
+    letter-spacing: 0.06em;
+  }
+
+  .log-line {
+    display: block;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .log-line.pass { color: var(--pass); }
+  .log-line.fail { color: var(--fail); }
+  .log-line.info { color: var(--muted); }
+  .log-line.warn { color: var(--running); }
+  .log-line.default { color: var(--text); }
+
+  /* Progress bar */
+  .progress-bar-wrap {
+    height: 3px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <span class="titlebar-title">Playwright Test Runner</span>
+  <span class="titlebar-badge">QA</span>
+</div>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-label">Test Suite</span>
+      <div class="summary-chips">
+        <span class="chip pass" id="pass-count">0 ✓</span>
+        <span class="chip fail" id="fail-count">0 ✗</span>
+      </div>
+    </div>
+
+    <div class="test-list" id="test-list">
+      <!-- Test items injected here -->
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-primary" id="run-all-btn" onclick="runAll()">▶ Run All</button>
+      <button class="btn btn-secondary" id="reset-btn" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </aside>
+
+  <!-- Log panel -->
+  <main class="log-panel">
+    <div class="progress-bar-wrap">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+    <div class="log-header">
+      <span class="log-title" id="log-title">Select a test</span>
+      <div class="log-status-bar">
+        <span class="status-label idle" id="log-status">IDLE</span>
+      </div>
+    </div>
+    <div class="log-body" id="log-body">
+      <div class="log-empty">
+        <div class="log-empty-icon">⬡</div>
+        <div class="log-empty-text">Run tests to see output</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const { ipcRenderer } = require('electron');
+
+// State
+let tests = [];     // { filename, status: 'idle'|'running'|'pass'|'fail', logs: [] }
+let selected = null;
+let running = false;
+
+// Init
+(async () => {
+  const files = await ipcRenderer.invoke('get-test-files');
+  tests = files.map(f => ({ filename: f, status: 'idle', logs: [] }));
+  renderTestList();
+  if (tests.length > 0) selectTest(0);
+})();
+
+// Listen for live log lines
+ipcRenderer.on('test-log', (event, { filename, stream, text }) => {
+  const t = tests.find(t => t.filename === filename);
+  if (t) {
+    t.logs.push({ stream, text });
+    if (selected === filename) appendLog(text, stream);
+  }
+});
+
+function renderTestList() {
+  const el = document.getElementById('test-list');
+  el.innerHTML = tests.map((t, i) => `
+    <div class="test-item ${selected === t.filename ? 'selected' : ''}" onclick="selectTest(${i})">
+      <div class="test-status-dot ${t.status}"></div>
+      <span class="test-name">${t.filename.replace('.js','')}</span>
+      <span class="test-badge ${t.status}">${statusLabel(t.status)}</span>
+    </div>
+  `).join('');
+  updateSummary();
+  updateProgress();
+}
+
+function statusLabel(s) {
+  return { idle: '—', running: '...', pass: 'PASS', fail: 'FAIL' }[s] || s;
+}
+
+function selectTest(index) {
+  selected = tests[index].filename;
+  renderTestList();
+  renderLogPanel(tests[index]);
+}
+
+function renderLogPanel(t) {
+  document.getElementById('log-title').textContent = t.filename.replace('.js','');
+  const statusEl = document.getElementById('log-status');
+  statusEl.textContent = statusLabel(t.status).toUpperCase();
+  statusEl.className = `status-label ${t.status}`;
+
+  const body = document.getElementById('log-body');
+  if (t.logs.length === 0) {
+    body.innerHTML = `<div class="log-empty"><div class="log-empty-icon">⬡</div><div class="log-empty-text">No output yet</div></div>`;
+  } else {
+    body.innerHTML = t.logs.map(l => formatLogLine(l.text, l.stream)).join('');
+    body.scrollTop = body.scrollHeight;
+  }
+}
+
+function appendLog(text, stream) {
+  const body = document.getElementById('log-body');
+  // Clear empty state on first log
+  if (body.querySelector('.log-empty')) body.innerHTML = '';
+  body.insertAdjacentHTML('beforeend', formatLogLine(text, stream));
+  body.scrollTop = body.scrollHeight;
+}
+
+function formatLogLine(text, stream) {
+  const lines = text.split('\n');
+  return lines.map(line => {
+    let cls = 'default';
+    if (line.includes('✅')) cls = 'pass';
+    else if (line.includes('❌')) cls = 'fail';
+    else if (stream === 'stderr') cls = 'warn';
+    else if (line.startsWith('Navigating') || line.startsWith('Filling') || line.startsWith('Submitting') ||
+             line.startsWith('Locating') || line.startsWith('Clicking') || line.startsWith('Checking')) cls = 'info';
+    const escaped = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return `<span class="log-line ${cls}">${escaped}</span>`;
+  }).join('\n');
+}
+
+function updateSummary() {
+  document.getElementById('pass-count').textContent = tests.filter(t=>t.status==='pass').length + ' ✓';
+  document.getElementById('fail-count').textContent = tests.filter(t=>t.status==='fail').length + ' ✗';
+}
+
+function updateProgress() {
+  const done = tests.filter(t => t.status === 'pass' || t.status === 'fail').length;
+  const pct = tests.length ? (done / tests.length) * 100 : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+}
+
+async function runAll() {
+  if (running) return;
+  running = true;
+  document.getElementById('run-all-btn').disabled = true;
+  document.getElementById('reset-btn').disabled = true;
+
+  // Reset all
+  tests.forEach(t => { t.status = 'idle'; t.logs = []; });
+  renderTestList();
+  if (selected) renderLogPanel(tests.find(t => t.filename === selected) || tests[0]);
+
+  // Run sequentially
+  for (let i = 0; i < tests.length; i++) {
+    const t = tests[i];
+    t.status = 'running';
+    t.logs = [];
+    renderTestList();
+    if (selected === t.filename) renderLogPanel(t);
+
+    const result = await ipcRenderer.invoke('run-test', t.filename);
+    t.status = result.passed ? 'pass' : 'fail';
+    renderTestList();
+    if (selected === t.filename) {
+      document.getElementById('log-status').textContent = t.status.toUpperCase();
+      document.getElementById('log-status').className = `status-label ${t.status}`;
+    }
+  }
+
+  running = false;
+  document.getElementById('run-all-btn').disabled = false;
+  document.getElementById('reset-btn').disabled = false;
+}
+
+function resetAll() {
+  if (running) return;
+  tests.forEach(t => { t.status = 'idle'; t.logs = []; });
+  renderTestList();
+  if (selected) renderLogPanel(tests.find(t => t.filename === selected) || tests[0]);
+}
+</script>
+</body>
+</html>
