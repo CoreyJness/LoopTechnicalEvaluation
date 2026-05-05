@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Playwright Test Runner</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+    :root {
+      --bg:         #0e0e10;
+      --surface:    #17171a;
+      --surface2:   #1e1e22;
+      --border:     #2a2a2f;
+      --accent:     #00e5a0;
+      --accent-dim: rgba(0,229,160,0.12);
+      --fail:       #ff4d6a;
+      --fail-dim:   rgba(255,77,106,0.12);
+      --warn:       #ffc043;
+      --text:       #e8e8ec;
+      --muted:      #6b6b7a;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Title bar ── */
+    #titlebar {
+      height: 38px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      -webkit-app-region: drag;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .dot { width:12px; height:12px; border-radius:50%; -webkit-app-region:no-drag; }
+    .dot-r { background:#ff5f57; } .dot-a { background:#febc2e; } .dot-g { background:#28c840; }
+    #titlebar-title {
+      flex:1; text-align:center;
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.68rem; color:var(--muted); letter-spacing:0.1em;
+      margin-right:44px;
+    }
+
+    /* ── Main layout ── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 38px);
+    }
+
+    #body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Left panel ── */
+    #left {
+      width: 360px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    #left-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    #left-header h1 {
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+    #left-header h1 span { color: var(--accent); }
+
+    .hdr-btns { display:flex; gap:6px; }
+    .btn-xs {
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.62rem; padding:3px 9px;
+      border-radius:5px; border:1px solid var(--border);
+      background:transparent; color:var(--muted);
+      cursor:pointer; transition:all .12s;
+    }
+    .btn-xs:hover { color:var(--text); border-color:var(--muted); }
+    .btn-xs.hi    { color:var(--accent); border-color:var(--accent); }
+    .btn-xs.hi:hover { background:var(--accent-dim); }
+
+    /* ── Section labels ── */
+    .sec-label {
+      padding: 7px 16px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.58rem; letter-spacing:0.12em;
+      text-transform:uppercase; color:var(--muted);
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ── Scrollable test list ── */
+    #test-scroll {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    /* ── Individual test row ── */
+    .test-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: default;
+      transition: background .1s;
+      position: relative;
+    }
+    .test-row:hover { background: rgba(255,255,255,0.025); }
+
+    /* checkbox */
+    .cb {
+      width:16px; height:16px; flex-shrink:0;
+      border:2px solid var(--border); border-radius:4px;
+      cursor:pointer; position:relative;
+      transition: background .12s, border-color .12s;
+    }
+    .cb.on { background:var(--accent); border-color:var(--accent); }
+    .cb.on::after {
+      content:'';
+      position:absolute; top:1px; left:4px;
+      width:4px; height:8px;
+      border:2px solid #0e0e10;
+      border-top:none; border-left:none;
+      transform:rotate(45deg);
+    }
+
+    /* info */
+    .ti { flex:1; min-width:0; cursor:pointer; }
+    .tn {
+      font-size:0.82rem; font-weight:700;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .td {
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.6rem; color:var(--muted); margin-top:2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+
+    /* run single button */
+    .btn-run1 {
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.6rem; padding:3px 8px;
+      border-radius:5px; border:1px solid var(--accent);
+      background:transparent; color:var(--accent);
+      cursor:pointer; opacity:0;
+      transition: opacity .12s, background .12s;
+      flex-shrink:0;
+    }
+    .test-row:hover .btn-run1 { opacity:1; }
+    .btn-run1:hover { background:var(--accent-dim); }
+    .btn-run1:disabled { opacity:0.25 !important; cursor:not-allowed; }
+
+    /* status badge */
+    .badge {
+      width:24px; height:24px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:0.78rem; font-weight:700; flex-shrink:0;
+      transition: all .2s;
+    }
+    .badge.idle    { border:1px dashed var(--border); }
+    .badge.running { border:1px solid var(--warn); background:rgba(255,192,67,.15); animation:pulse 1s infinite; }
+    .badge.pass    { border:1px solid var(--accent); background:var(--accent-dim); color:var(--accent); }
+    .badge.fail    { border:1px solid var(--fail);   background:var(--fail-dim);   color:var(--fail); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+    /* ── Footer ── */
+    #left-footer {
+      padding: 12px 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    #btn-run-sel {
+      flex:1; padding:11px;
+      background:var(--accent); color:#0e0e10;
+      border:none; border-radius:8px;
+      font-family:'Syne',sans-serif;
+      font-size:0.82rem; font-weight:800;
+      cursor:pointer; transition:opacity .15s, transform .1s;
+    }
+    #btn-run-sel:hover:not(:disabled) { opacity:.88; transform:translateY(-1px); }
+    #btn-run-sel:disabled { opacity:.3; cursor:not-allowed; }
+
+    #btn-reset {
+      padding:11px 14px;
+      background:transparent; color:var(--muted);
+      border:1px solid var(--border); border-radius:8px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.7rem; cursor:pointer; transition:all .15s;
+    }
+    #btn-reset:hover { color:var(--text); border-color:var(--muted); }
+
+    /* ── Right panel ── */
+    #right {
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      overflow:hidden;
+    }
+
+    #right-header {
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.68rem; color:var(--muted);
+      min-height:42px;
+    }
+    #right-header b { color:var(--accent); font-weight:600; }
+
+    /* summary pills */
+    #summary {
+      display:flex; gap:8px;
+      padding:12px 16px;
+      border-bottom:1px solid var(--border);
+      flex-shrink:0;
+    }
+    .pill {
+      flex:1; background:var(--surface2);
+      border:1px solid var(--border); border-radius:8px;
+      padding:8px; text-align:center;
+    }
+    .pill .pc { font-size:1.4rem; font-weight:800; line-height:1; }
+    .pill .pl { font-family:'JetBrains Mono',monospace; font-size:0.58rem; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:.08em; }
+    .pill.pp .pc { color:var(--accent); }
+    .pill.pf .pc { color:var(--fail); }
+    .pill.pt .pc { color:var(--text); }
+
+    /* log */
+    #log {
+      flex:1; overflow-y:auto;
+      padding:14px 16px;
+      font-family:'JetBrains Mono',monospace;
+      font-size:0.7rem; line-height:1.8;
+      white-space:pre-wrap; word-break:break-word;
+    }
+    #log:empty::before { content:'Select tests and click ▶ Run Selected, or use the ▶ button on any row to run individually.'; color:var(--muted); font-style:italic; }
+
+    .l-pass  { color:var(--accent); display:block; }
+    .l-fail  { color:var(--fail);   display:block; }
+    .l-warn  { color:var(--warn);   display:block; }
+    .l-muted { color:var(--muted);  display:block; }
+    .l-sep   { display:block; color:var(--border); border-top:1px solid var(--border); margin:8px 0 4px; font-size:0.62rem; letter-spacing:.1em; color:var(--muted); padding-top:6px; }
+
+    ::-webkit-scrollbar { width:4px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  </style>
+</head>
+<body>
+
+<div id="titlebar">
+  <div class="dot dot-r"></div>
+  <div class="dot dot-a"></div>
+  <div class="dot dot-g"></div>
+  <div id="titlebar-title">PLAYWRIGHT TEST RUNNER</div>
+</div>
+
+<div id="app">
+  <div id="body">
+
+    <!-- LEFT -->
+    <div id="left">
+      <div id="left-header">
+        <h1>Test <span>Suite</span></h1>
+        <div class="hdr-btns">
+          <button class="btn-xs" onclick="setAll(false)">None</button>
+          <button class="btn-xs hi" onclick="setAll(true)">All</button>
+        </div>
+      </div>
+
+      <div id="test-scroll">
+        <!-- rendered by JS -->
+      </div>
+
+      <div id="left-footer">
+        <button id="btn-run-sel" onclick="runSelected()">▶ Run Selected</button>
+        <button id="btn-reset"   onclick="resetAll()">Reset</button>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div id="right">
+      <div id="right-header">No test running</div>
+      <div id="summary">
+        <div class="pill pt"><div class="pc" id="s-total">—</div><div class="pl">Total</div></div>
+        <div class="pill pp"><div class="pc" id="s-pass">—</div><div class="pl">Passed</div></div>
+        <div class="pill pf"><div class="pc" id="s-fail">—</div><div class="pl">Failed</div></div>
+      </div>
+      <div id="log"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── Test definitions ──────────────────────────────────────────
+const TESTS = [
+  { id:'login', group:'auth',   name:'Login Test',   desc:'Verify login credentials and redirect', file:'testLogin.js' },
+  { id:'tc1',   group:'web',    name:'Test Case 1',  desc:'Web · "Implement user authentication" · Feature, High Priority', file:'TestCase1.js' },
+  { id:'tc2',   group:'web',    name:'Test Case 2',  desc:'Web · "Fix navigation bug" in To Do · Bug',                      file:'TestCase2.js' },
+  { id:'tc3',   group:'web',    name:'Test Case 3',  desc:'Web · "Design system updates" in In Progress · Design',          file:'TestCase3.js' },
+  { id:'tc4',   group:'mobile', name:'Test Case 4',  desc:'Mobile · "Push notification system" in To Do · Feature',         file:'TestCase4.js' },
+  { id:'tc5',   group:'mobile', name:'Test Case 5',  desc:'Mobile · "Offline mode" in In Progress · Feature, High Priority', file:'TestCase5.js' },
+  { id:'tc6',   group:'mobile', name:'Test Case 6',  desc:'Mobile · "App icon design" in Done · Design',                   file:'TestCase6.js' },
+];
+
+// ── State ─────────────────────────────────────────────────────
+const sel      = new Set(TESTS.map(t => t.id));   // selected IDs
+const statuses = {};                               // id -> idle|running|pass|fail
+TESTS.forEach(t => { statuses[t.id] = 'idle'; });
+
+let running  = false;
+let ranTotal = 0, ranPass = 0, ranFail = 0;
+
+// Promise resolvers keyed by test id, used to sequence runs
+const resolvers = {};
+
+// ── IPC listeners (set once) ──────────────────────────────────
+window.electronAPI.onTestOutput(({ id, text }) => {
+  appendLog(text);
+});
+
+window.electronAPI.onTestDone(({ id, passed }) => {
+  statuses[id] = passed ? 'pass' : 'fail';
+  ranTotal++;
+  if (passed) ranPass++; else ranFail++;
+  updateSummary();
+  renderList();
+  if (resolvers[id]) { resolvers[id](passed); delete resolvers[id]; }
+});
+
+// ── Render ────────────────────────────────────────────────────
+const GROUPS = [
+  { key:'auth',   label:'🔐  Authentication' },
+  { key:'web',    label:'🌐  Web Application' },
+  { key:'mobile', label:'📱  Mobile Application' },
+];
+
+function renderList() {
+  const scroll = document.getElementById('test-scroll');
+  scroll.innerHTML = '';
+
+  GROUPS.forEach(g => {
+    const group = TESTS.filter(t => t.group === g.key);
+    if (!group.length) return;
+
+    const lbl = document.createElement('div');
+    lbl.className = 'sec-label';
+    lbl.textContent = g.label;
+    scroll.appendChild(lbl);
+
+    group.forEach(t => {
+      const status = statuses[t.id];
+      const isOn   = sel.has(t.id);
+
+      const row = document.createElement('div');
+      row.className = 'test-row';
+      row.dataset.id = t.id;
+
+      // checkbox
+      const cb = document.createElement('div');
+      cb.className = 'cb' + (isOn ? ' on' : '');
+      cb.title = 'Toggle selection';
+      cb.addEventListener('click', () => toggleSel(t.id));
+
+      // info
+      const info = document.createElement('div');
+      info.className = 'ti';
+      info.addEventListener('click', () => toggleSel(t.id));
+      info.innerHTML = `<div class="tn">${t.name}</div><div class="td">${t.desc}</div>`;
+
+      // run single button
+      const rb = document.createElement('button');
+      rb.className = 'btn-run1';
+      rb.textContent = '▶ Run';
+      rb.disabled = running;
+      rb.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!running) runOne(t);
+      });
+
+      // badge
+      const badge = document.createElement('div');
+      badge.className = 'badge ' + status;
+      badge.textContent = { idle:'', running:'◉', pass:'✓', fail:'✕' }[status];
+
+      row.appendChild(cb);
+      row.appendChild(info);
+      row.appendChild(rb);
+      row.appendChild(badge);
+      scroll.appendChild(row);
+    });
+  });
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function toggleSel(id) {
+  if (running) return;
+  sel.has(id) ? sel.delete(id) : sel.add(id);
+  renderList();
+}
+
+function setAll(on) {
+  if (running) return;
+  if (on) TESTS.forEach(t => sel.add(t.id));
+  else sel.clear();
+  renderList();
+}
+
+function setHeader(html) {
+  document.getElementById('right-header').innerHTML = html;
+}
+
+function updateSummary() {
+  document.getElementById('s-total').textContent = ranTotal || '—';
+  document.getElementById('s-pass').textContent  = ranTotal ? ranPass : '—';
+  document.getElementById('s-fail').textContent  = ranTotal ? ranFail : '—';
+}
+
+function appendLog(text) {
+  const log = document.getElementById('log');
+  const lines = text.split('\n');
+  lines.forEach(line => {
+    if (!line.trim()) return;
+    const span = document.createElement('span');
+    span.className = classifyLine(line);
+    span.textContent = line;
+    log.appendChild(span);
+  });
+  log.scrollTop = log.scrollHeight;
+}
+
+function addLogSep(label) {
+  const log = document.getElementById('log');
+  const span = document.createElement('span');
+  span.className = 'l-sep';
+  span.textContent = '▸ ' + label;
+  log.appendChild(span);
+}
+
+function classifyLine(l) {
+  if (/✅|passed|All checks passed/i.test(l)) return 'l-pass';
+  if (/❌|failed|NOT found|Error|error/i.test(l)) return 'l-fail';
+  if (/Navigating|Filling|Submitting|Clicking|Locating|Checking|Running|→/.test(l)) return 'l-warn';
+  return 'l-muted';
+}
+
+function lockUI(lock) {
+  running = lock;
+  document.getElementById('btn-run-sel').disabled = lock;
+  document.getElementById('btn-reset').disabled   = lock;
+  renderList(); // re-renders run buttons with disabled state
+}
+
+// ── Run a single test, returns Promise<bool> ──────────────────
+function runOne(t) {
+  return new Promise(resolve => {
+    lockUI(true);
+    statuses[t.id] = 'running';
+    renderList();
+    setHeader(`Running <b>${t.name}</b>`);
+    addLogSep(`${t.name} — ${t.file}`);
+    resolvers[t.id] = (passed) => {
+      lockUI(false);
+      setHeader(`${t.name}: ${passed
+        ? '<span style="color:var(--accent)">✓ Passed</span>'
+        : '<span style="color:var(--fail)">✕ Failed</span>'}`);
+      resolve(passed);
+    };
+    window.electronAPI.runTest(t.id, t.file);
+  });
+}
+
+// ── Run selected tests sequentially ──────────────────────────
+async function runSelected() {
+  const queue = TESTS.filter(t => sel.has(t.id));
+  if (!queue.length) return;
+
+  // reset counters + log
+  ranTotal = ranPass = ranFail = 0;
+  updateSummary();
+  document.getElementById('log').innerHTML = '';
+  lockUI(true);
+
+  for (let i = 0; i < queue.length; i++) {
+    const t = queue[i];
+    statuses[t.id] = 'running';
+    renderList();
+    setHeader(`Running <b>${t.name}</b> (${i+1} / ${queue.length})`);
+    addLogSep(`${t.name} — ${t.file}`);
+
+    await new Promise(resolve => {
+      resolvers[t.id] = resolve;
+      window.electronAPI.runTest(t.id, t.file);
+    });
+  }
+
+  lockUI(false);
+  renderList();
+  setHeader(`Done &mdash; <b>${ranPass} / ${queue.length} passed</b>`);
+}
+
+// ── Reset ─────────────────────────────────────────────────────
+function resetAll() {
+  if (running) return;
+  TESTS.forEach(t => { statuses[t.id] = 'idle'; });
+  ranTotal = ranPass = ranFail = 0;
+  document.getElementById('log').innerHTML = '';
+  updateSummary();
+  setHeader('No test running');
+  renderList();
+}
+
+// ── Init ──────────────────────────────────────────────────────
+renderList();
+</script>
+</body>
+</html>

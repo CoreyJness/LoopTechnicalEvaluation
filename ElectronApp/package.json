@@ -1,0 +1,15 @@
+{
+  "name": "playwright-test-runner",
+  "version": "1.0.0",
+  "description": "Electron UI for Playwright test cases",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "playwright": "^1.44.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  }
+}
