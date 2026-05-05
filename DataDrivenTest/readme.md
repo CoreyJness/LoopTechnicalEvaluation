@@ -1,6 +1,10 @@
 # Playwright Data-Driven Test Suite
 
-A data-driven Playwright test suite for the Demo App. All test scenarios are defined in a single JSON file — adding or modifying a test case requires **no code changes**.
+A data-driven Playwright test suite for the Demo App. All test scenarios are defined in a single JSON file — adding or modifying a test case requires no code changes.
+
+This project is part of the Loop Technical Evaluation for QA Testing.
+
+---
 
 ## Project Structure
 
@@ -17,35 +21,31 @@ playwright-project/
 └── playwright.config.js
 ```
 
+---
+
 ## How It Works
 
-`testData.json` defines every scenario:
+Every scenario is defined in `testData.json` as a JSON object. `tasks.spec.js` loops over every entry and generates a named test automatically — no code changes required to add new cases.
 
-```json
-{
-  "credentials": { "username": "admin", "password": "password123" },
-  "testCases": [
-    {
-      "id": "TC001",
-      "description": "...",
-      "section": "Web Application",
-      "expectedColumn": "To Do",
-      "taskName": "Implement user authentication",
-      "expectedTags": ["Feature", "High Priority"]
-    }
-  ]
-}
-```
+1. **`testData.json`** — Defines credentials and all test scenarios in one place
+2. **`login.js`** — Shared login helper used by both spec files, no duplicated logic
+3. **`tasks.spec.js`** — A single `for` loop iterates over every test case and generates a named test dynamically
+4. **`playwright.config.js`** — Base URL, screenshots and video captured on failure, HTML report on every run
 
-`tasks.spec.js` loops over every entry and generates a named test automatically:
+----
 
-```js
-for (const tc of testCases) {
-  test(`[${tc.id}] ${tc.description}`, async ({ page }) => {
-    // login → navigate → find column → find card → verify tags
-  });
-}
-```
+## Test Cases
+
+| ID | Section | Task | Expected Column | Tags |
+|---|---|---|---|---|
+| TC001 | Web Application | Implement user authentication | To Do | Feature, High Priority |
+| TC002 | Web Application | Fix navigation bug | To Do | Bug |
+| TC003 | Web Application | Design system updates | In Progress | Design |
+| TC004 | Mobile Application | Push notification system | To Do | Feature |
+| TC005 | Mobile Application | Offline mode | In Progress | Feature, High Priority |
+| TC006 | Mobile Application | App icon design | Done | Design |
+
+---
 
 ## Setup
 
@@ -63,16 +63,18 @@ npm test
 # Run with HTML report
 npm run test:report
 
-# Run a specific test by name
+# Run a specific test by ID
 npx playwright test --grep "TC003"
 
-# Run only login test
+# Run login test only
 npx playwright test tests/login.spec.js
 ```
 
+---
+
 ## Adding a New Test Case
 
-Simply add an entry to `data/testData.json`:
+Add an entry to `data/testData.json` — no code changes required:
 
 ```json
 {
@@ -85,4 +87,4 @@ Simply add an entry to `data/testData.json`:
 }
 ```
 
-No code changes required.
+The suite picks it up automatically on the next run.
