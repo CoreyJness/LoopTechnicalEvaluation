@@ -1,0 +1,12 @@
+{
+  "name": "playwright-data-driven-tests",
+  "version": "1.0.0",
+  "description": "Data-driven Playwright test suite for Demo App",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:report": "npx playwright test && npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.44.0"
+  }
+}

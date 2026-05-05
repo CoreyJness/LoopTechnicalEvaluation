@@ -1,0 +1,56 @@
+{
+  "credentials": {
+    "username": "admin",
+    "password": "password123"
+  },
+  "testCases": [
+    {
+      "id": "TC001",
+      "description": "Implement user authentication is in To Do under Web Application",
+      "section": "Web Application",
+      "expectedColumn": "To Do",
+      "taskName": "Implement user authentication",
+      "expectedTags": ["Feature", "High Priority"]
+    },
+    {
+      "id": "TC002",
+      "description": "Fix navigation bug is in To Do under Web Application",
+      "section": "Web Application",
+      "expectedColumn": "To Do",
+      "taskName": "Fix navigation bug",
+      "expectedTags": ["Bug"]
+    },
+    {
+      "id": "TC003",
+      "description": "Design system updates is In Progress under Web Application",
+      "section": "Web Application",
+      "expectedColumn": "In Progress",
+      "taskName": "Design system updates",
+      "expectedTags": ["Design"]
+    },
+    {
+      "id": "TC004",
+      "description": "Push notification system is in To Do under Mobile Application",
+      "section": "Mobile Application",
+      "expectedColumn": "To Do",
+      "taskName": "Push notification system",
+      "expectedTags": ["Feature"]
+    },
+    {
+      "id": "TC005",
+      "description": "Offline mode is In Progress under Mobile Application",
+      "section": "Mobile Application",
+      "expectedColumn": "In Progress",
+      "taskName": "Offline mode",
+      "expectedTags": ["Feature", "High Priority"]
+    },
+    {
+      "id": "TC006",
+      "description": "App icon design is Done under Mobile Application",
+      "section": "Mobile Application",
+      "expectedColumn": "Done",
+      "taskName": "App icon design",
+      "expectedTags": ["Design"]
+    }
+  ]
+}
