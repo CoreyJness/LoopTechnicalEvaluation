@@ -44,8 +44,5 @@ Each project has its own setup instructions. See the README inside each folder:
 
 ---
 
-## Demo App
-
-**URL:** https://animated-gingersnap-8cf7f2.netlify.app/  
-**Username:** admin  
-**Password:** password123
+## Future Development
+- Create a database that stores all results of pass/fails automatically, then automate results to be sent to key stakeholders. 
